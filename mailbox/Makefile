@@ -1,22 +1,30 @@
 #embedded linux course
 
-CC:=gcc
-CFLAGS = -O0 -Wall
-LIBS = -lpthread
+CC:=${CROSS_COMPILE}gcc
+CFLAGS=-O0 -Wall
+LIBS=-lpthread
+INCLUDE=-I include/
+SRC_PATH=src/
+OBJ_PATH=build/
 
-SRC=$(wildcard *.c)
-OBJS=$(SRC:.c=.o)
+SRC=$(wildcard $(SRC_PATH)*.c)
+SRC_TMP=$(notdir $(SRC))
+OBJS_TMP=$(SRC_TMP:.c=.o)
+OBJS=$(addprefix $(OBJ_PATH), $(OBJS_TMP))
 
-all: app
+all: make_dir app
 
-%.o: %.c
-	${CC} $(CFLAGS) -c $< -o $@
+make_dir:
+	test -d $(OBJ_PATH) || mkdir $(OBJ_PATH)
 
-app: ${OBJS}
-	${CC} $^ -o $@ $(LIBS)
+$(OBJ_PATH)%.o: $(SRC_PATH)%.c
+	$(CC) $(CFLAGS) -c $(INCLUDE) $< -o $@
+
+app: $(OBJS)
+	$(CC) $^ -o $(OBJ_PATH)$@ $(LIBS)
 
 clean:
-	rm -f *.o app
+	rm -r $(OBJ_PATH)
 
-.PHONY: all clean
+.PHONY: all clean make_dir
 

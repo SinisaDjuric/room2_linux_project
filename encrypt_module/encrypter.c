@@ -70,58 +70,58 @@ int encrypter_major = 60;
 char *encrypter_buffer;
 
 static int encryptVigenere(const char* in, const char *key, char* out){
-	int inLength = strlen(in);
-	int keyLength = strlen(key);
-	int i=0, j=0;
-	char c;
-	char k;
+    int inLength = strlen(in);
+    int keyLength = strlen(key);
+    int i=0, j=0;
+    char c;
+    char k;
 
-	for(i=0; i<inLength; i++){
-		if(j>=keyLength){
-			j=0;
-		}
-		c = in[i];
-		k = key[j];
-		if((c>='a' && c<='z') || (c>='A' && c<='Z')){
-			c= tolower(c);
-			k= tolower(k);
-			out[i] = ((c -'a') + (key[j] -'a')) % 26 + 'a';
-			j++;
-		}else{
-			out[i] = in[i];
-		}
-	}
+    for(i=0; i<inLength; i++){
+        if(j>=keyLength){
+            j=0;
+        }
+        c = in[i];
+        k = key[j];
+        if((c>='a' && c<='z') || (c>='A' && c<='Z')){
+            c= tolower(c);
+            k= tolower(k);
+            out[i] = ((c -'a') + (key[j] -'a')) % 26 + 'a';
+            j++;
+        }else{
+            out[i] = in[i];
+        }
+    }
 
-	return 1;
+    return 1;
 }
 
 static int decryptVigenere(const char* in, const char *key, char* out){
-	int inLength = strlen(in);
-	int keyLength = strlen(key);
-	int i=0, j=0;
-	char c;
-	char k;
+    int inLength = strlen(in);
+    int keyLength = strlen(key);
+    int i=0, j=0;
+    char c;
+    char k;
 
-	for(i=0; i<inLength; i++){
-		if(j>=keyLength){
-			j=0;
-		}
-		c = in[i];
-		k = key[j];
-		if((c>='a' && c<='z') || (c>='A' && c<='Z')){
-			c= tolower(c);
-			k= tolower(k);
-			if((c = (c -'a') - (k -'a')) < 0){
-				c += 26;
-			}
-			out[i] = c % 26 + 'a';
-			j++;
-		}else{
-			out[i] = in[i];
-		}
-	}
+    for(i=0; i<inLength; i++){
+        if(j>=keyLength){
+            j=0;
+        }
+        c = in[i];
+        k = key[j];
+        if((c>='a' && c<='z') || (c>='A' && c<='Z')){
+            c= tolower(c);
+            k= tolower(k);
+            if((c = (c -'a') - (k -'a')) < 0){
+                c += 26;
+            }
+            out[i] = c % 26 + 'a';
+            j++;
+        }else{
+            out[i] = in[i];
+        }
+    }
 
-	return 1;
+    return 1;
 }
 
 /*
@@ -268,7 +268,7 @@ static ssize_t encrypter_write(struct file *filp, const char *buf, size_t len, l
     else
     {
         if(encryption_enable){
-                /* Encrypt received data. */      	
+                /* Encrypt received data. */          
                 for(i=0; i < len; ++i){
                     encrypter_buffer[i] = ~encrypter_buffer[i];
                 }
@@ -291,8 +291,8 @@ static ssize_t encrypter_write(struct file *filp, const char *buf, size_t len, l
  */
 static long encrypter_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
     int i = 0;
-	encryption_enable = cmd;
-	error_injection = arg;
+    encryption_enable = cmd;
+    error_injection = arg;
     printk(KERN_INFO "Encryption enable updated\n");
      if (arg == ERROR_INJECTION){
          for(i=0; i < BUF_LEN; ++i){
@@ -300,5 +300,5 @@ static long encrypter_ioctl(struct file *file, unsigned int cmd, unsigned long a
         }
     }
     
-	return 0;
+    return 0;
 }
