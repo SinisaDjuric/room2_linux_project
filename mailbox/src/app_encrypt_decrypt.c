@@ -22,6 +22,8 @@ static sem_t sem_encrypt;
 static sem_t sem_decrypt;
 static sem_t semFinishSignal;
 
+static int stop = 0;
+
 static sigset_t sigset;  
 
 void wait_next_activation(void)
@@ -164,7 +166,18 @@ void* decrypted_msg(void* param)
                 printf("decrypted thread: failed to read data from driver\n");
                 //return -1;
             }
-            printf("decrypted: %s  sizeof: %d\n", decrypted, sizeof(decrypted));                                  
+
+            printf("decrypted: %s  sizeof: %d\n", decrypted, sizeof(decrypted));
+            /* Check if sending should stop. */
+            if (stop == 1)
+            {
+                /* Terminate thread; Signal the semaphore three times
+                in order to notify all three threads. */
+                sem_post(&semFinishSignal);
+                sem_post(&semFinishSignal);
+                sem_post(&semFinishSignal);
+                sem_post(&semFinishSignal);
+            }
         }
     }
     return 0;
@@ -181,15 +194,12 @@ void* isFinish(void* param)
         char c = getch();
         if(c =='q' || c =='Q')
         {
-            sem_post(&semFinishSignal);
-            sem_post(&semFinishSignal);
-            sem_post(&semFinishSignal);
-            sem_post(&semFinishSignal);
+            stop = 1;
         }
         usleep(50000);
                 
-        }
-        return 0;
+    }
+    return 0;
 }
 
 int main(int argc, char* argv[]){
