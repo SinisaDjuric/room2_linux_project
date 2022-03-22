@@ -118,7 +118,7 @@ static dev_t project_dev;
 static struct cdev project_cdev;
 
 int project_open (struct inode *pnode, struct file *pfile) {
-    //printk(KERN_INFO "%s called...\n", __FUNCTION__);
+    printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
     return 0;
 }
 
@@ -126,7 +126,7 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
     int msg_length = 0, data_size = 0;
     char crc;
     char *encrypted_crc;
-    //printk(KERN_INFO "%s called...\n", __FUNCTION__);
+    printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
 
     /* if mode is encryption, then create message containing LENGHT, CRC and STRING */
     if (mode == 1) {
@@ -134,6 +134,7 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
         if (*offset == 0) {
             /* send data to user space */
             data_size = msg_length + 3;
+            printk(KERN_DEBUG "driver encrypted = '%s'!\n", encrypted_crc + 2);
             if (copy_to_user(buffer, encrypted_crc, data_size) != 0) {
                 return -EFAULT;
             }
@@ -144,28 +145,28 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
             return 0;
         }
     } else if (mode == 0) { /* if mode is decryption, then create message containing only STRING */
-            if (copy_to_user(buffer, project_data.project_buff, project_data.lenght) != 0) {
+            printk(KERN_DEBUG "driver decrypted = '%s'!\n", project_data.project_buff);
+            if (copy_to_user(buffer, project_data.project_buff, project_data.lenght+1) != 0) {
                 return -EFAULT;
             } 
             return project_data.lenght;
     } else {
-        printk(KERN_INFO "Unknown encryption mode '%d'!\n", mode);
+        printk(KERN_DEBUG "Unknown encryption mode '%d'!\n", mode);
         return -EFAULT;
     }
 }
 
 ssize_t project_write (struct file *pfile, const char __user *buffer, size_t length, loff_t *offset) {
     char* decrypted, *encrypted, msg_length, crc, dec_crc;
-    //printk(KERN_INFO "%s called...\n", __FUNCTION__);
+    printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
 
     /* check requested length */
     if (length > PROJECT_BUFFSIZE) {
-        printk(KERN_ERR "Requested write size '%d' exceeds allowed buffer driver size '%d'!\n", length, PROJECT_BUFFSIZE);
+        printk(KERN_DEBUG "Requested write size '%d' exceeds allowed buffer driver size '%d'!\n", length, PROJECT_BUFFSIZE);
         return -EFAULT;
     }
     /* Reset memory. */
     memset(project_data.project_buff, 0, PROJECT_BUFFSIZE);
-
     if (mode == 1) {
         if (copy_from_user(project_data.project_buff, buffer, length)) {
             return -EFAULT;
@@ -181,24 +182,25 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
         encrypted = project_data.project_buff + 2;
         decrypted = get_decrypted(encrypted, msg_length);
         dec_crc = calculate_crc(decrypted, msg_length);
+        memset(project_data.project_buff, 0, PROJECT_BUFFSIZE);
+        strncpy(project_data.project_buff, decrypted, msg_length + 1);
+        project_data.lenght = (int)msg_length + 1;
         if (crc == dec_crc) {
-            memset(project_data.project_buff, 0, PROJECT_BUFFSIZE);
-            strncpy(project_data.project_buff, decrypted, msg_length);
-            project_data.lenght = (int)msg_length;
+            printk(KERN_DEBUG "CRC sum match");
             kfree(decrypted);
         } else {
-            printk(KERN_ERR "Decryption failed!\n");
+            printk(KERN_DEBUG "CRC sum mismatch");
             kfree(decrypted);
-            return -EFAULT;
         }
         return length;
     } else {
-        printk(KERN_ERR "Unknown encryption mode '%d'!\n", mode);
+        printk(KERN_DEBUG "Unknown encryption mode '%d'!\n", mode);
         return -EFAULT;
     }
 }
 
  long project_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
+    printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
 	mode = cmd;
     switch (cmd) {
         case 1: //encryption mode
@@ -211,12 +213,12 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
             printk(KERN_ERR "Unsupported driver mode '%u'\n", cmd);
             return -ENOTTY;
     }
-    //printk(KERN_INFO "Encryption mode updated to '%d'\n", mode);
+    printk(KERN_DEBUG "Encryption mode updated to '%d'\n", mode);
 	return 0;
 }
 
 int project_close (struct inode *pnode, struct file *pfile) {
-    //printk(KERN_INFO "%s called...\n", __FUNCTION__);      
+    printk(KERN_DEBUG "%s called...\n", __FUNCTION__);      
     return 0;
 }
 
@@ -232,7 +234,7 @@ struct file_operations project_file_operations = {
 /* Add your code here */
 static int __init  project_init(void) {
     int err;
-    printk(KERN_INFO "%s called...\n", __FUNCTION__);
+    printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
     if (alloc_chrdev_region(&project_dev, 0, project_count, "project_embedded")) {
         err=-ENODEV;
         goto err_dev_unregister;
@@ -250,7 +252,7 @@ static int __init  project_init(void) {
 }
 
 static void __exit project_exit(void) {
-    printk(KERN_INFO "%s called...\n", __FUNCTION__);
+    printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
     cdev_del(&project_cdev);
     unregister_chrdev_region(project_dev, project_count);
 }

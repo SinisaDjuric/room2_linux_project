@@ -6,22 +6,37 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <string.h>
 
 int main (int argc, char *argv[])
 {
     int fileDeskriptor;
     char encrypted[50];
-    char decrypted[50];
-    char message[] = "pero";
+    char decrypted[53];
+    char message[50];
     int mode = 0; //decryption mode
 
     /* app takes as argument path to the device file 
     example of calling app is: ./app/test_app /dev/project_embedded */
-    if (argc < 2) {
+    if (argc < 3) {
         printf("Wrong number of arguments!\n");
         exit(1);
     }
- 
+
+    int size = atoi(argv[2]);
+    printf("size = '%d'\n", size);
+    int i;
+    for(i =0; i< size; i++)
+    {
+        message[i]= 'A';//+ (random()%26);	
+    }
+    message[i]= '\0';
+    message[i+1]= 'P';
+    message[i+2]= 'E';
+    message[i+3]= 'R';
+    message[i+4]= 'O';
+    printf("Message = '%s'\n", message);
+    
     // Opening file in reading/writting mode
     fileDeskriptor = open(argv[1], O_RDWR);
     if (fileDeskriptor < 0) {
@@ -41,7 +56,7 @@ int main (int argc, char *argv[])
     read(fileDeskriptor, encrypted, sizeof(encrypted));
     /* print encrypted data */
     printf("encrypted = '%s'\n", encrypted + 2); //has to be +2 because lenth and CRC are on first two possitions due to encryption mode
-
+    printf("strlen = '%d'\n", strlen(encrypted + 2));
 
     /* set mode to decryption */
     mode = 0;
