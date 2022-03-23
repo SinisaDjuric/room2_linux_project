@@ -13,29 +13,23 @@ int main (int argc, char *argv[])
     int fileDeskriptor;
     char encrypted[50];
     char decrypted[53];
-    char message[50];
+    char message[51];
     int mode = 0; //decryption mode
 
     /* app takes as argument path to the device file 
-    example of calling app is: ./app/test_app /dev/project_embedded */
+    example of calling app is: "./app/test_app /dev/project_embedded 3" */
     if (argc < 3) {
         printf("Wrong number of arguments!\n");
         exit(1);
     }
 
     int size = atoi(argv[2]);
-    printf("size = '%d'\n", size);
     int i;
-    for(i =0; i< size; i++)
-    {
+    for(i = 0; i < size; i++) {
         message[i]= 'A';//+ (random()%26);	
     }
     message[i]= '\0';
-    message[i+1]= 'P';
-    message[i+2]= 'E';
-    message[i+3]= 'R';
-    message[i+4]= 'O';
-    printf("Message = '%s'\n", message);
+    printf("message   = '%s'\n", message);
     
     // Opening file in reading/writting mode
     fileDeskriptor = open(argv[1], O_RDWR);
@@ -51,12 +45,11 @@ int main (int argc, char *argv[])
 		exit(1);
   	}
     /* encrypt data using write */
-    write(fileDeskriptor, message, sizeof(message));
+    write(fileDeskriptor, message, sizeof(message) -1);
     /* get encrypted data using read */
     read(fileDeskriptor, encrypted, sizeof(encrypted));
     /* print encrypted data */
     printf("encrypted = '%s'\n", encrypted + 2); //has to be +2 because lenth and CRC are on first two possitions due to encryption mode
-    printf("strlen = '%d'\n", strlen(encrypted + 2));
 
     /* set mode to decryption */
     mode = 0;

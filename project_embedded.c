@@ -106,7 +106,7 @@ char* encrypt_append_crc_length(char* message, int* length, char* crc) {
 int mode = 0; //default value encrypted
 module_param(mode, int, S_IWUSR | S_IRUSR); //alow user to write and read
 
-#define PROJECT_BUFFSIZE 50
+#define PROJECT_BUFFSIZE 51
 struct proj_data {
     char project_buff[PROJECT_BUFFSIZE];
     int lenght;
@@ -134,7 +134,7 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
         if (*offset == 0) {
             /* send data to user space */
             data_size = msg_length + 3;
-            printk(KERN_DEBUG "driver encrypted = '%s'!\n", encrypted_crc + 2);
+            printk(KERN_DEBUG "driver encrypted = '%s'\n", encrypted_crc + 2);
             if (copy_to_user(buffer, encrypted_crc, data_size) != 0) {
                 return -EFAULT;
             }
@@ -145,8 +145,8 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
             return 0;
         }
     } else if (mode == 0) { /* if mode is decryption, then create message containing only STRING */
-            printk(KERN_DEBUG "driver decrypted = '%s'!\n", project_data.project_buff);
-            if (copy_to_user(buffer, project_data.project_buff, project_data.lenght+1) != 0) {
+            printk(KERN_DEBUG "driver decrypted = '%s'\n", project_data.project_buff);
+            if (copy_to_user(buffer, project_data.project_buff, project_data.lenght + 1) != 0) {
                 return -EFAULT;
             } 
             return project_data.lenght;
@@ -161,7 +161,7 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
 
     /* check requested length */
-    if (length > PROJECT_BUFFSIZE) {
+    if (length > 50) {
         printk(KERN_DEBUG "Requested write size '%d' exceeds allowed buffer driver size '%d'!\n", length, PROJECT_BUFFSIZE);
         return -EFAULT;
     }
@@ -174,13 +174,16 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
         project_data.lenght = (int)length;
         return length;
     } else if (mode == 0) { /* if mode is decryption, then create message containing only STRING */
-        if (copy_from_user(project_data.project_buff, buffer, length)) {
+        if (copy_from_user(project_data.project_buff, buffer, length + 1)) {
             return -EFAULT;
         }
+        printk(KERN_DEBUG "write buffer = '%s'\n", project_data.project_buff);
         msg_length = project_data.project_buff[0];
+        printk(KERN_DEBUG "msg_length = '%d'\n", msg_length);
         crc = project_data.project_buff[1];
         encrypted = project_data.project_buff + 2;
         decrypted = get_decrypted(encrypted, msg_length);
+        printk(KERN_DEBUG "write decrypted = '%s'\n", decrypted);
         dec_crc = calculate_crc(decrypted, msg_length);
         memset(project_data.project_buff, 0, PROJECT_BUFFSIZE);
         strncpy(project_data.project_buff, decrypted, msg_length + 1);
@@ -261,6 +264,6 @@ module_init(project_init);
 module_exit(project_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Project");
+MODULE_DESCRIPTION("This module is used for encrypting data using Caesar Cipher.");
 MODULE_AUTHOR("Petar Cvjetkovic");
 
