@@ -2,7 +2,8 @@
 
 CC:=${CROSS_COMPILE}gcc
 CFLAGS=-O0 -Wall
-LIBS=-lpthread
+LDFLAGS=-static
+LIBS=-lrt -lpthread
 INCLUDE=-I include/
 SRC_PATH=src/
 OBJ_PATH=build/
@@ -21,7 +22,7 @@ $(OBJ_PATH)%.o: $(SRC_PATH)%.c
 	$(CC) $(CFLAGS) -c $(INCLUDE) $< -o $@
 
 app: $(OBJS)
-	$(CC) $^ -o $(OBJ_PATH)$@ $(LIBS)
+	$(CC) $^ -o $(OBJ_PATH)$@ $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -r $(OBJ_PATH)
