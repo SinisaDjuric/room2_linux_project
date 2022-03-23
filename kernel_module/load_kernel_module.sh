@@ -6,11 +6,19 @@ module="mailbox_module"
 # Name of the device
 device="mailbox_module"
 
-# Remove old module
-rmmod $module 
+# Name of the directory the script is placed in
+dir_name=$(dirname "$0")
+
+# Path to script and kernel module
+curr_dir=$(realpath ${dir_name})
+
+# Remove old module if exists
+if lsmod | grep $module &> /dev/null ; then
+    rmmod $module
+fi
 
 # Load module to kernel
-insmod ./$module.ko
+insmod $curr_dir/$module.ko
 
 # Get major number
 major=$(cat /proc/devices | grep $module | cut -d' ' -f1)
