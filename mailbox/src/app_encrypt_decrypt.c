@@ -71,10 +71,10 @@ void* create_msg(void* param)
              break;
         }
         
-        for(i =0; i< len; i++)
+        for(i = 0; i < len; i++)
         {
             /* Creating a random character */
-            message[i]= 'A';//+ (random()%26);     
+            message[i]= 'A'+ (random() % 26);     
         }
         message[i]='\0'; 
 
@@ -238,6 +238,14 @@ int main(int argc, char* argv[])
 
     printf(" Press q or Q to finish program!\n");
 
+    /* Start periodic timer with offset 2s and period 2s */
+    ret = start_periodic_timer(2000000, 2000000);
+    if (ret < 0) 
+    {
+        perror("Start Periodic Timer");
+        return -1;
+    }
+
     /* Initialize semaphores */
     /* Signal the first thread */
     ret = sem_init(&sem_encrypt, 0, 0);
@@ -288,14 +296,6 @@ int main(int argc, char* argv[])
     if(ret != 0)
     {
         printf("Error, thread_finish is not created!\n");
-        return -1;
-    }
-
-    /* Start periodic timer with offset 2s and period 2s */
-    ret = start_periodic_timer(2000000, 2000000);
-    if (ret < 0) 
-    {
-        perror("Start Periodic Timer");
         return -1;
     }
 

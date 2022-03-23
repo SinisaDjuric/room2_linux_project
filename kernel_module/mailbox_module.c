@@ -102,7 +102,7 @@ char* get_decrypted(char* encrypted, int length)
         else if(ch >= 'A' && ch <= 'Z')
         {
             ch = ch - key;
-            if(ch > 'a')
+            if(ch < 'A')
             {
                 ch = ch + 'Z' - 'A' + 1;
             }
@@ -151,7 +151,7 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
         {
             /* Send data to user space */
             data_size = msg_length + 3;
-            printk(KERN_DEBUG "driver encrypted = '%s'\n", encrypted_crc + 2);
+            printk(KERN_DEBUG "driver [encrypted] = '%s'\n", encrypted_crc + 2);
             if (copy_to_user(buffer, encrypted_crc, data_size) != 0)
             {
                 return -EFAULT;
@@ -169,7 +169,7 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
     else if (mode == 0) 
     { 
         /* If mode is decryption, then create message containing only STRING */
-        printk(KERN_DEBUG "Driver decrypted = '%s'!\n", project_data.project_buff);
+        printk(KERN_DEBUG "driver [decrypted] = '%s'\n", project_data.project_buff);
         if (copy_to_user(buffer, project_data.project_buff, project_data.lenght + 1) != 0)
         {
             return -EFAULT;
