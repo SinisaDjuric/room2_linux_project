@@ -74,7 +74,7 @@ void* create_msg(void* param)
         for( i =0; i< len; i++)
         {
             /* Creating a random character */
-            message[i]= 'A' ;//+ (random()%26);     
+            message[i]= 'A' + (random()%26);     
         }
         message[i]='\0'; 
 
