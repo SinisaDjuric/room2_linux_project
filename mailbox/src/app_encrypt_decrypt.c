@@ -20,9 +20,8 @@
 
 static sem_t sem_encrypt;
 static sem_t sem_decrypt;
-static sem_t semFinishSignal;
-
-static int stop = 0;
+static sem_t sem_finish;
+static sem_t sem_stop;
 
 static sigset_t sigset;  
 
@@ -43,10 +42,12 @@ int start_periodic_timer(long offs, int period)
     t.it_value.tv_usec = offs % 1000000;
     t.it_interval.tv_sec = period / 1000000;
     t.it_interval.tv_usec = period % 1000000;
-
-    sigemptyset(&sigset);                   /* Initialization */
-    sigaddset(&sigset, SIGALRM);            /* Add SIGALRM in set sigset */
-    sigprocmask(SIG_BLOCK, &sigset, NULL);  /* Setting which signal from sigset is monitored */
+    /* Initialization */
+    sigemptyset(&sigset);
+    /* Add SIGALRM in set sigset */
+    sigaddset(&sigset, SIGALRM);
+    /* Setting which signal from sigset is monitored */
+    sigprocmask(SIG_BLOCK, &sigset, NULL);
     ret = setitimer(ITIMER_REAL, &t, NULL);
     return ret;
 }
@@ -59,37 +60,39 @@ void* create_msg(void* param)
     int mode;
     int i;
     char message[MAX_BUFFER];
-    int fileDeskriptor = *(int*)(param);
-    int len = random()%(MAX_STRING);   /* length of the message created */
-    //printf(" Fajl deskriptor %d\n", fileDeskriptor);
+    int file_descriptor = *(int*)(param);
+    /* Length of the message created */
+    int len = random()%(MAX_STRING);  
+
     while(1)
     {
-        if (sem_trywait(&semFinishSignal) == 0)
+        if (sem_trywait(&sem_finish) == 0)
         {
              break;
         }
         
         for( i =0; i< len; i++)
         {
-            message[i]= 'A' ;//+ (random()%26);     /* creating a random character */
+            /* Creating a random character */
+            message[i]= 'A' ;//+ (random()%26);     
         }
         message[i]='\0'; 
 
         printf("\ncreated:   %s  sizeof: %d\n",message , sizeof(message));
-        /* set mode to encryption */
+        /* Set mode to encryption */
         mode = 1;
-        if (ioctl(fileDeskriptor, mode)) 
+        if (ioctl(file_descriptor, mode)) 
         {
             printf("Error sending the ioctl command %d to file\n", mode);
             exit(1);
         }
 
-        /* encrypt data using write */
-        ret = write(fileDeskriptor, message, sizeof(message));
+        /* Encrypt data using write */
+        ret = write(file_descriptor, message, sizeof(message));
 
         if( ret<0)
         {
-            printf("create msg thread: failed to write data to driver\n");
+            printf("Create msg thread: failed to write data to driver\n");
             //return -1;
         }
          sem_post(&sem_encrypt);
@@ -100,45 +103,47 @@ void* create_msg(void* param)
 
 void* encrypted_msg(void* param)
 {
-    int fileDeskriptor = *(int*)(param);
     int mode;
     int ret;
     char encrypted[MAX_BUFFER];
+    int file_descriptor = *(int*)(param);
     
     while(1)
     {
-        if (sem_trywait(&semFinishSignal) == 0)
+        if (sem_trywait(&sem_finish) == 0)
         {
              break;
         }
         if(sem_trywait(&sem_encrypt)==0)
         {
-            ret = read(fileDeskriptor, encrypted, sizeof(encrypted)); /* read encrypted message */
+            /* Read encrypted message */
+            ret = read(file_descriptor, encrypted, sizeof(encrypted));
             if( ret<0)
             {
-                printf("encrypted thread: failed to read data from driver\n");
+                printf("Encrypted thread: failed to read data from driver\n");
                 //return -1;
             }
-            printf("encrypted: %s  sizeof: %d\n", encrypted + 2, sizeof(encrypted));
+            printf("Encrypted: %s  sizeof: %d\n", encrypted + 2, sizeof(encrypted));
             
             int rand = random()%10;
 
             if( rand <3)
             {
-                encrypted[2]++;   /* change random encrypted message to test decryption */
-                printf("encrypted with change: %s  sizeof: %d\n", encrypted + 2, sizeof(encrypted));
+                /* Change random encrypted message to test decryption */
+                encrypted[2]++;
+                printf("Encrypted with change: %s  sizeof: %d\n", encrypted + 2, sizeof(encrypted));
             }
             mode = 0;
-            if (ioctl(fileDeskriptor, mode)) {
+            if (ioctl(file_descriptor, mode)) {
                 printf("Error sending the ioctl command %d to file\n", mode);
                 exit(1);
             }
 
-             /* decrypt data using write */
-            ret = write(fileDeskriptor, encrypted, sizeof(encrypted));
+            /* Decrypt data using write */
+            ret = write(file_descriptor, encrypted, sizeof(encrypted));
             if( ret<0)
             {
-                printf("encrypted thread: failed to write data to driver\n");
+                printf("Encrypted thread: failed to write data to driver\n");
                 //return -1;
             }
 
@@ -149,34 +154,35 @@ void* encrypted_msg(void* param)
 }
 void* decrypted_msg(void* param)
 {
-    int fileDeskriptor = *(int*)(param);
     int ret;
     char decrypted[MAX_BUFFER];
+    int file_descriptor = *(int*)(param);
+
     while(1)
     {
-        if (sem_trywait(&semFinishSignal) == 0)
+        if (sem_trywait(&sem_finish) == 0)
         {
              break;
         }
         if(sem_trywait(&sem_decrypt)==0)
         {
-            ret = read(fileDeskriptor, decrypted, sizeof(decrypted));
+            ret = read(file_descriptor, decrypted, sizeof(decrypted));
             if( ret<0)
             {
-                printf("decrypted thread: failed to read data from driver\n");
+                printf("Decrypted thread: failed to read data from driver\n");
                 //return -1;
             }
 
-            printf("decrypted: %s  sizeof: %d\n", decrypted, sizeof(decrypted));
+            printf("Decrypted: %s  sizeof: %d\n", decrypted, sizeof(decrypted));
             /* Check if sending should stop. */
-            if (stop == 1)
+            if (sem_trywait(&sem_stop) == 0)
             {
-                /* Terminate thread; Signal the semaphore three times
-                in order to notify all three threads. */
-                sem_post(&semFinishSignal);
-                sem_post(&semFinishSignal);
-                sem_post(&semFinishSignal);
-                sem_post(&semFinishSignal);
+                /* Terminate threads. Signal the semaphore four times
+                in order to notify all four threads. */
+                sem_post(&sem_finish);
+                sem_post(&sem_finish);
+                sem_post(&sem_finish);
+                sem_post(&sem_finish);
             }
         }
     }
@@ -185,16 +191,19 @@ void* decrypted_msg(void* param)
     
 void* isFinish(void* param)
 {
+    char c;
+
     while(1)
     {
-        if (sem_trywait(&semFinishSignal) == 0)
+        if (sem_trywait(&sem_finish) == 0)
         {
             break;
         }
-        char c = getch();
+
+        c = getch();
         if(c =='q' || c =='Q')
         {
-            stop = 1;
+            sem_post(&sem_stop);
         }
         usleep(50000);
                 
@@ -202,128 +211,142 @@ void* isFinish(void* param)
     return 0;
 }
 
-int main(int argc, char* argv[]){
-    
+int main(int argc, char* argv[])
+{
     pthread_t thread_1;
     pthread_t thread_2;
     pthread_t thread_3;
     pthread_t thread_finish;
-    
+
     int ret;
-    int fileDeskriptor;
-    
+    int file_descriptor;
+
     if (argc < 2) 
     {
         printf("Wrong number of arguments!\n");
         exit(1);
     }
 
-    fileDeskriptor = open(argv[1], O_RDWR);    /* open driver */
-           
-    if (fileDeskriptor < 0) 
+    /* Open driver */
+    file_descriptor = open(argv[1], O_RDWR);
+
+    if (file_descriptor < 0) 
     {
         printf("File '%s' can't be opened!\n", argv[1]);
         exit(1);
     }
-    /*
-    struct arguments {
-        //char* name
-        int fileDeskriptor;
-        };
-        */
-    
-    ret = start_periodic_timer(2000000, 2000000);     /* start periodic timer with 
-                                                       offset 2s and period 2s */
-       if (ret < 0) 
-       {
-        perror("Start Periodic Timer");
-        return -1;
-    }
 
     printf(" Press q or Q to finish program!\n");
 
-    ret = sem_init(&sem_encrypt, 0, 0);    /* initialize semaphores */
+    /* Initialize semaphores */
+    /* Signal the first thread */
+    ret = sem_init(&sem_encrypt, 0, 1);
     if( ret !=0)
     {
-        printf("Error, semaphore is not initialised!\n");
+        printf("Error, semaphore sem_encrypt is not initialised!\n");
         return -1;
     }
     ret = sem_init(&sem_decrypt, 0, 0);
     if( ret !=0)
     {
-        printf("Error, semaphore is not initialised!\n");
+        printf("Error, semaphore sem_decrypt is not initialised!\n");
         return -1;
     }
-    ret = sem_init(&semFinishSignal, 0, 0);
+    ret = sem_init(&sem_finish, 0, 0);
     if( ret !=0)
     {
-        printf("Error, semaphore is not initialised!\n");
+        printf("Error, semaphore sem_finish is not initialised!\n");
         return -1;
     }
-    
-    ret = pthread_create(&thread_1, NULL, create_msg, &fileDeskriptor);    /* create threads */
+    ret = sem_init(&sem_stop, 0, 0);
     if( ret !=0)
     {
-        printf("Error, thread is not created!\n");
+        printf("Error, semaphore sem_stop is not initialised!\n");
         return -1;
     }
-    ret = pthread_create(&thread_2, NULL, encrypted_msg, &fileDeskriptor);
+
+    /* Create threads */
+    ret = pthread_create(&thread_1, NULL, create_msg, &file_descriptor);
     if( ret !=0)
     {
-        printf("Error, thread is not created!\n");
+        printf("Error, thread_1 is not created!\n");
         return -1;
     }
-    ret = pthread_create(&thread_3, NULL, decrypted_msg, &fileDeskriptor);
+    ret = pthread_create(&thread_2, NULL, encrypted_msg, &file_descriptor);
     if( ret !=0)
     {
-        printf("Error, thread is not created!\n");
+        printf("Error, thread_21 is not created!\n");
+        return -1;
+    }
+    ret = pthread_create(&thread_3, NULL, decrypted_msg, &file_descriptor);
+    if( ret !=0)
+    {
+        printf("Error, thread_3 is not created!\n");
         return -1;
     }
     ret = pthread_create(&thread_finish, NULL, isFinish, 0);
     if( ret !=0)
     {
-        printf("Error, thread is not created!\n");
+        printf("Error, thread_finish is not created!\n");
         return -1;
     }
-    
-    ret = pthread_join(thread_1, NULL);    /* join threads */
+
+    /* Start periodic timer with offset 2s and period 2s */
+    ret = start_periodic_timer(2000000, 2000000);
+    if (ret < 0) 
+    {
+        perror("Start Periodic Timer");
+        return -1;
+    }
+
+    /* Join threads */
+    ret = pthread_join(thread_1, NULL);
     if( ret !=0)
     {
-        printf("Error, thread is not joined!\n");
+        printf("Error, thread_1 is not joined!\n");
         return -1;
     }
     ret = pthread_join(thread_2, NULL);
     if( ret !=0)
     {
-        printf("Error, thread is not joined!\n");
+        printf("Error, thread_2 is not joined!\n");
         return -1;
     }
     ret = pthread_join(thread_3, NULL);
     if( ret !=0)
     {
-        printf("Error, thread is not joined!\n");
+        printf("Error, thread_3 is not joined!\n");
         return -1;
     }
-    
-    ret = sem_destroy(&sem_encrypt);    /* destroy semaphores */
+
+    /* Destroy semaphores */
+    ret = sem_destroy(&sem_encrypt);
     if( ret !=0)
     {
-        printf("Error, failed to destroy semaphore!\n");
+        printf("Error, failed to destroy semaphore sem_encrypt!\n");
         return -1;
     }
     ret = sem_destroy(&sem_decrypt);
     if( ret !=0)
     {
-        printf("Error, failed to destroy semaphore!\n");
+        printf("Error, failed to destroy semaphore sem_decrypt!\n");
         return -1;
     }
-    ret = sem_destroy(&semFinishSignal);
+    ret = sem_destroy(&sem_finish);
     if( ret !=0)
     {
-        printf("Error, failed to destroy semaphore!\n");
+        printf("Error, failed to destroy semaphore sem_finish!\n");
         return -1;
     }
-    ret = close(fileDeskriptor);    /* close driver */
+    ret = sem_destroy(&sem_stop);
+    if( ret !=0)
+    {
+        printf("Error, failed to destroy semaphore sem_stop!\n");
+        return -1;
+    }
+
+    /* Close driver */
+    ret = close(file_descriptor);
     if( ret !=0)
     {
         printf("Error, failed to close the file!\n");
