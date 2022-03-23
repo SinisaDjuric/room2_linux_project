@@ -11,7 +11,7 @@
 #include <linux/string.h>
 
 
-#define PROJECT_BUFFSIZE 50
+#define PROJECT_BUFFSIZE 51
 
 struct proj_data 
 {
@@ -151,7 +151,7 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
         {
             /* Send data to user space */
             data_size = msg_length + 3;
-            printk(KERN_DEBUG "driver encrypted = '%s'!\n", encrypted_crc + 2);
+            printk(KERN_DEBUG "driver encrypted = '%s'\n", encrypted_crc + 2);
             if (copy_to_user(buffer, encrypted_crc, data_size) != 0)
             {
                 return -EFAULT;
@@ -170,7 +170,7 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
     { 
         /* If mode is decryption, then create message containing only STRING */
         printk(KERN_DEBUG "Driver decrypted = '%s'!\n", project_data.project_buff);
-        if (copy_to_user(buffer, project_data.project_buff, project_data.lenght+1) != 0)
+        if (copy_to_user(buffer, project_data.project_buff, project_data.lenght + 1) != 0)
         {
             return -EFAULT;
         } 
@@ -189,7 +189,7 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
 
     /* Check requested length */
-    if (length > PROJECT_BUFFSIZE)
+    if (length > 50)
     {
         printk(KERN_DEBUG "Requested write size '%d' exceeds allowed buffer driver size '%d'!\n", length, PROJECT_BUFFSIZE);
         return -EFAULT;
@@ -209,7 +209,7 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
     else if (mode == 0)
     {
         /* If mode is decryption, then create message containing only STRING */
-        if (copy_from_user(project_data.project_buff, buffer, length))
+        if (copy_from_user(project_data.project_buff, buffer, length + 1))
         {
             return -EFAULT;
         }
@@ -299,6 +299,6 @@ module_init(project_init);
 module_exit(project_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Project");
+MODULE_DESCRIPTION("This module is used for encrypting data using Caesar Cipher.");
 MODULE_AUTHOR("Room2");
 

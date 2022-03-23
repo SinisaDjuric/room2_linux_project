@@ -71,10 +71,10 @@ void* create_msg(void* param)
              break;
         }
         
-        for( i =0; i< len; i++)
+        for(i =0; i< len; i++)
         {
             /* Creating a random character */
-            message[i]= 'A' + (random()%26);     
+            message[i]= 'A';//+ (random()%26);     
         }
         message[i]='\0'; 
 
@@ -90,7 +90,7 @@ void* create_msg(void* param)
         /* Encrypt data using write */
         ret = write(file_descriptor, message, sizeof(message));
 
-        if( ret<0)
+        if(ret < 0)
         {
             printf("Create msg thread: failed to write data to driver\n");
             //return -1;
@@ -114,7 +114,7 @@ void* encrypted_msg(void* param)
         {
              break;
         }
-        if(sem_trywait(&sem_encrypt)==0)
+        if (sem_trywait(&sem_encrypt) == 0)
         {
             /* Read encrypted message */
             ret = read(file_descriptor, encrypted, sizeof(encrypted));
@@ -127,26 +127,26 @@ void* encrypted_msg(void* param)
             
             int rand = random()%10;
 
-            if( rand <3)
+            if (rand < 3)
             {
                 /* Change random encrypted message to test decryption */
                 encrypted[2]++;
                 printf("Encrypted with change: %s  sizeof: %d\n", encrypted + 2, sizeof(encrypted));
             }
             mode = 0;
-            if (ioctl(file_descriptor, mode)) {
+            if (ioctl(file_descriptor, mode)) 
+            {
                 printf("Error sending the ioctl command %d to file\n", mode);
                 exit(1);
             }
 
             /* Decrypt data using write */
             ret = write(file_descriptor, encrypted, sizeof(encrypted));
-            if( ret<0)
+            if (ret < 0)
             {
                 printf("Encrypted thread: failed to write data to driver\n");
                 //return -1;
             }
-
             sem_post(&sem_decrypt);
         }
     }
@@ -164,10 +164,10 @@ void* decrypted_msg(void* param)
         {
              break;
         }
-        if(sem_trywait(&sem_decrypt)==0)
+        if (sem_trywait(&sem_decrypt) == 0)
         {
             ret = read(file_descriptor, decrypted, sizeof(decrypted));
-            if( ret<0)
+            if(ret < 0)
             {
                 printf("Decrypted thread: failed to read data from driver\n");
                 //return -1;
@@ -240,26 +240,26 @@ int main(int argc, char* argv[])
 
     /* Initialize semaphores */
     /* Signal the first thread */
-    ret = sem_init(&sem_encrypt, 0, 1);
-    if( ret !=0)
+    ret = sem_init(&sem_encrypt, 0, 0);
+    if (ret != 0)
     {
         printf("Error, semaphore sem_encrypt is not initialised!\n");
         return -1;
     }
     ret = sem_init(&sem_decrypt, 0, 0);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, semaphore sem_decrypt is not initialised!\n");
         return -1;
     }
     ret = sem_init(&sem_finish, 0, 0);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, semaphore sem_finish is not initialised!\n");
         return -1;
     }
     ret = sem_init(&sem_stop, 0, 0);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, semaphore sem_stop is not initialised!\n");
         return -1;
@@ -267,25 +267,25 @@ int main(int argc, char* argv[])
 
     /* Create threads */
     ret = pthread_create(&thread_1, NULL, create_msg, &file_descriptor);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, thread_1 is not created!\n");
         return -1;
     }
     ret = pthread_create(&thread_2, NULL, encrypted_msg, &file_descriptor);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, thread_21 is not created!\n");
         return -1;
     }
     ret = pthread_create(&thread_3, NULL, decrypted_msg, &file_descriptor);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, thread_3 is not created!\n");
         return -1;
     }
     ret = pthread_create(&thread_finish, NULL, isFinish, 0);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, thread_finish is not created!\n");
         return -1;
@@ -301,19 +301,19 @@ int main(int argc, char* argv[])
 
     /* Join threads */
     ret = pthread_join(thread_1, NULL);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, thread_1 is not joined!\n");
         return -1;
     }
     ret = pthread_join(thread_2, NULL);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, thread_2 is not joined!\n");
         return -1;
     }
     ret = pthread_join(thread_3, NULL);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, thread_3 is not joined!\n");
         return -1;
@@ -321,25 +321,25 @@ int main(int argc, char* argv[])
 
     /* Destroy semaphores */
     ret = sem_destroy(&sem_encrypt);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, failed to destroy semaphore sem_encrypt!\n");
         return -1;
     }
     ret = sem_destroy(&sem_decrypt);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, failed to destroy semaphore sem_decrypt!\n");
         return -1;
     }
     ret = sem_destroy(&sem_finish);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, failed to destroy semaphore sem_finish!\n");
         return -1;
     }
     ret = sem_destroy(&sem_stop);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, failed to destroy semaphore sem_stop!\n");
         return -1;
@@ -347,7 +347,7 @@ int main(int argc, char* argv[])
 
     /* Close driver */
     ret = close(file_descriptor);
-    if( ret !=0)
+    if(ret != 0)
     {
         printf("Error, failed to close the file!\n");
         return -1;
