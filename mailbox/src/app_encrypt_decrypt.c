@@ -22,6 +22,7 @@ static sem_t sem_encrypt;
 static sem_t sem_decrypt;
 static sem_t sem_finish;
 static sem_t sem_stop;
+static sem_t sem_create;
 
 static sigset_t sigset;  
 
@@ -71,33 +72,35 @@ void* create_msg(void* param)
         {
              break;
         }
-        
-        for(i = 0; i < len; i++)
-        {
-            /* Creating a random character */
-            message[i]= 'A'+ (random() % 26);     
-        }
-        message[i]='\0'; 
 
-        printf("\nCreated:   %s.\n", message);
-        /* Set mode to encryption */
-        mode = 1;
-        if (ioctl(file_descriptor, mode)) 
+        if (sem_trywait(&sem_create) == 0)
         {
-            printf("Error sending the ioctl command %d to file\n", mode);
-            exit(1);
-        }
+            for(i =0; i< len; i++)
+            {
+                /* Creating a random character */
+                message[i]= 'A' + (random() % 26);     
+            }
+            message[i]='\0'; 
 
-        /* Encrypt data using write */
-        ret = write(file_descriptor, message, sizeof(message));
+            printf("\nCreated:   %s.\n", message);
+            /* Set mode to encryption */
+            mode = 1;
+            if (ioctl(file_descriptor, mode)) 
+            {
+                printf("Error sending the ioctl command %d to file\n", mode);
+                exit(1);
+            }
 
-        if(ret < 0)
-        {
-            printf("Create msg thread: failed to write data to driver\n");
-            //return -1;
+            /* Encrypt data using write */
+            ret = write(file_descriptor, message, sizeof(message));
+
+            if(ret < 0)
+            {
+                printf("Create msg thread: failed to write data to driver\n");
+                //return -1;
+            }
+             sem_post(&sem_encrypt);
         }
-         sem_post(&sem_encrypt);
-         wait_next_activation();
     }
     return 0;
 }
@@ -190,7 +193,7 @@ void* decrypted_msg(void* param)
     return 0;
 }
     
-void* isFinish(void* param)
+void* finish(void* param)
 {
     char c;
 
@@ -212,12 +215,22 @@ void* isFinish(void* param)
     return 0;
 }
 
+/* Timer callback being caller on every 2 seconds. */
+void* send_new_mail (void *param)
+{
+    sem_post(&semSent);
+
+    return 0;
+}
+
 int main(int argc, char* argv[])
 {
     pthread_t thread_1;
     pthread_t thread_2;
     pthread_t thread_3;
     pthread_t thread_finish;
+    /* Timer ID. */
+    timer_event_t timer;
 
     int ret;
     int file_descriptor;
@@ -273,6 +286,12 @@ int main(int argc, char* argv[])
         printf("Error, semaphore sem_stop is not initialised!\n");
         return -1;
     }
+    ret = sem_init(&sem_create, 0, 1);
+    if(ret != 0)
+    {
+        printf("Error, semaphore sem_create is not initialised!\n");
+        return -1;
+    }
 
     /* Create threads */
     ret = pthread_create(&thread_1, NULL, create_msg, &file_descriptor);
@@ -293,12 +312,15 @@ int main(int argc, char* argv[])
         printf("Error, thread_3 is not created!\n");
         return -1;
     }
-    ret = pthread_create(&thread_finish, NULL, isFinish, 0);
+    ret = pthread_create(&thread_finish, NULL, finish, 0);
     if(ret != 0)
     {
         printf("Error, thread_finish is not created!\n");
         return -1;
     }
+
+    /* Create the timer event for send_new_mail callback function. */
+    timer_event_set(&timer, 2000, send_new_mail, 0, TE_KIND_REPETITIVE);
 
     /* Join threads */
     ret = pthread_join(thread_1, NULL);
@@ -319,6 +341,9 @@ int main(int argc, char* argv[])
         printf("Error, thread_3 is not joined!\n");
         return -1;
     }
+
+    /* Stop the timer. */
+    timer_event_kill(timer);
 
     /* Destroy semaphores */
     ret = sem_destroy(&sem_encrypt);
@@ -343,6 +368,12 @@ int main(int argc, char* argv[])
     if(ret != 0)
     {
         printf("Error, failed to destroy semaphore sem_stop!\n");
+        return -1;
+    }
+    ret = sem_destroy(&sem_create);
+    if(ret != 0)
+    {
+        printf("Error, failed to destroy semaphore sem_create!\n");
         return -1;
     }
 
