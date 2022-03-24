@@ -9,6 +9,7 @@
 #include <linux/uaccess.h> 
 #include <linux/gfp.h>
 #include <linux/string.h>
+#include <linux/gpio.h>
 
 
 #define PROJECT_BUFFSIZE 51
@@ -17,6 +18,10 @@ struct proj_data
 {
     char project_buff[PROJECT_BUFFSIZE];
     int lenght;
+};
+
+static struct gpio led[] = {
+	{47, GPIOF_OUT_INIT_HIGH, "led0"},
 };
 
 /* Input parameter */
@@ -52,11 +57,6 @@ char* get_encrypted(char* message, int* length)
     /* Save message length due to encryption, meaybe output can be "mef\0fwr\0\0" */
     *length = size;
     encrypted = (char*)kmalloc_array(size + 1, sizeof(char), GFP_ATOMIC);
-    if (encrypted == NULL) 
-    {
-        printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
-        return NULL;
-    }
     strncpy(encrypted, message, size + 1);
 
     for(i = 0; encrypted[i] != '\0'; ++i)
@@ -90,11 +90,6 @@ char* get_decrypted(char* encrypted, int length)
     int i;
     char ch, *decrypted;
     decrypted = (char*)kmalloc_array(length + 1, sizeof(char), GFP_ATOMIC);
-    if (decrypted == NULL) 
-    {
-        printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
-        return NULL;
-    }
     strncpy(decrypted, encrypted, length + 1);
 
     for(i = 0; i < length; ++i)
@@ -125,22 +120,10 @@ char* get_decrypted(char* encrypted, int length)
 /* Appends CRC to encrypted message (decrypted or encrypted) */
 char* encrypt_append_crc_length(char* message, int* length, char* crc)
 {
-    char* encrypted, *message_crc;
-    char sum = 0;
+    char* encrypted = get_encrypted(message, length);
+    char sum = calculate_crc(message, *length);
     int j = 0;
-
-    encrypted = get_encrypted(message, length);
-    sum = calculate_crc(message, *length);
-    if (encrypted == NULL)
-    {
-        return NULL;
-    }
-    message_crc = (char*)kmalloc_array(*length + 3, sizeof(char), GFP_ATOMIC);
-    if (message_crc == NULL) 
-    {
-        printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
-        return NULL;
-    }
+    char* message_crc = (char*)kmalloc_array(*length + 3, sizeof(char), GFP_ATOMIC);
     message_crc[0] = (char)(*length);
     message_crc[1] = sum;
     for(j = 0; j < *length; j++)
@@ -154,6 +137,10 @@ char* encrypt_append_crc_length(char* message, int* length, char* crc)
 
 int project_open (struct inode *pnode, struct file *pfile)
 {
+	int i;
+	for(i = 0; i < ARRAY_SIZE(leds); i++) {
+		gpio_set_value(leds[i].gpio, 0);
+		}
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
     return 0;
 }
@@ -169,10 +156,6 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
     if (mode == 1)
     {
         encrypted_crc = encrypt_append_crc_length(project_data.project_buff, &msg_length, &crc);
-        if(encrypted_crc == NULL)
-        {
-            return -EFAULT;
-        }
         if (*offset == 0)
         {
             /* Send data to user space */
@@ -243,10 +226,6 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
         crc = project_data.project_buff[1];
         encrypted = project_data.project_buff + 2;
         decrypted = get_decrypted(encrypted, msg_length);
-        if (decrypted == NULL)
-        {
-            return -EFAULT;
-        }
         dec_crc = calculate_crc(decrypted, msg_length);
         memset(project_data.project_buff, 0, PROJECT_BUFFSIZE);
         strncpy(project_data.project_buff, decrypted, msg_length + 1);
@@ -255,10 +234,18 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
         if (crc == dec_crc)
         {
             printk(KERN_DEBUG "CRC sum match");
+            int i;
+			for(i = 0; i < ARRAY_SIZE(leds); i++) {
+				gpio_set_value(leds[i].gpio, 1);
+				}
         } 
         else
         {
             printk(KERN_DEBUG "CRC sum mismatch");
+            int i;
+			for(i = 0; i < ARRAY_SIZE(leds); i++) {
+				gpio_set_value(leds[i].gpio, 0);
+				}
         }
         kfree(decrypted);
         return length;
@@ -272,24 +259,11 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
 
  long project_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  {
-    int ret = 0;
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
-    switch (cmd)
-    {
-    case 1:
-        printk(KERN_DEBUG "Driver mode = 'Encryption'\n");
-        mode = cmd;
-        break;
-    case 0:
-        printk(KERN_DEBUG "Driver mode = 'Decryption'\n");
-        mode = cmd;
-        break;
-    default:
-        printk(KERN_DEBUG "Unknown encryption mode '%d'!\n", mode);
-        ret = -EFAULT;
-        break;
-    }
-    return ret;
+    mode = cmd;
+    printk(KERN_DEBUG "Encryption mode updated to '%d'\n", mode);
+
+    return 0;
 }
 
 int project_close (struct inode *pnode, struct file *pfile)
@@ -324,6 +298,7 @@ static int __init  project_init(void)
         err=-ENODEV;
         goto err_dev_unregister;
     }
+    gpio_request_array(leds, ARRAY_SIZE(leds));
     return 0;
 
     err_dev_unregister:
@@ -333,6 +308,10 @@ static int __init  project_init(void)
 
 static void __exit project_exit(void)
 {
+	int i;
+	for(i = 0; i < ARRAY_SIZE(leds); i++) {
+		gpio_set_value(leds[i].gpio, 0);
+	}
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
     cdev_del(&project_cdev);
     unregister_chrdev_region(project_dev, project_count);
