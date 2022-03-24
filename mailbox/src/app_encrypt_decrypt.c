@@ -7,13 +7,13 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <string.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-
 #include <signal.h>
+#include "timer_event.h"
+
 #define MAX_BUFFER 50
 #define MAX_STRING MAX_BUFFER - 2
 #define CONST 5
@@ -23,35 +23,6 @@ static sem_t sem_decrypt;
 static sem_t sem_finish;
 static sem_t sem_stop;
 static sem_t sem_create;
-
-static sigset_t sigset;  
-
-void wait_next_activation(void)
-{
-    /* Wait for the signal from the sigset and write in the dummy data to
-       the signal that came */
-    int dummy;
-    sigwait(&sigset, &dummy); 
-}
-
-int start_periodic_timer(long offs, int period)
-{
-    struct itimerval t;
-    int ret;
-
-    t.it_value.tv_sec = offs / 1000000;
-    t.it_value.tv_usec = offs % 1000000;
-    t.it_interval.tv_sec = period / 1000000;
-    t.it_interval.tv_usec = period % 1000000;
-    /* Initialization */
-    sigemptyset(&sigset);
-    /* Add SIGALRM in set sigset */
-    sigaddset(&sigset, SIGALRM);
-    /* Setting which signal from sigset is monitored */
-    sigprocmask(SIG_BLOCK, &sigset, NULL);
-    ret = setitimer(ITIMER_REAL, &t, NULL);
-    return ret;
-}
 
 char getch(void);
 
@@ -218,7 +189,7 @@ void* finish(void* param)
 /* Timer callback being caller on every 2 seconds. */
 void* send_new_mail (void *param)
 {
-    sem_post(&semSent);
+    sem_post(&sem_create);
 
     return 0;
 }
@@ -251,14 +222,6 @@ int main(int argc, char* argv[])
     }
 
     printf(" Press q or Q to finish program!\n");
-
-    /* Start periodic timer with offset 2s and period 2s */
-    ret = start_periodic_timer(2000000, 2000000);
-    if (ret < 0) 
-    {
-        perror("Start Periodic Timer");
-        return -1;
-    }
 
     /* Initialize semaphores */
     /* Signal the first thread */
