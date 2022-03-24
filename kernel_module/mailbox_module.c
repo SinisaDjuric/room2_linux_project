@@ -9,7 +9,7 @@
 #include <linux/uaccess.h> 
 #include <linux/gfp.h>
 #include <linux/string.h>
-
+#include <linux/gpio.h>
 
 #define PROJECT_BUFFSIZE 51
 
@@ -17,6 +17,10 @@ struct proj_data
 {
     char project_buff[PROJECT_BUFFSIZE];
     int lenght;
+};
+
+static struct gpio leds[] = {
+	{47, GPIOF_OUT_INIT_HIGH, "led0"},
 };
 
 /* Input parameter */
@@ -154,7 +158,12 @@ char* encrypt_append_crc_length(char* message, int* length, char* crc)
 
 int project_open (struct inode *pnode, struct file *pfile)
 {
+	int i;
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
+	for(i = 0; i < ARRAY_SIZE(leds); i++) 
+    {
+		gpio_set_value(leds[i].gpio, 0);
+	}
     return 0;
 }
 
@@ -212,6 +221,7 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
 ssize_t project_write (struct file *pfile, const char __user *buffer, size_t length, loff_t *offset)
 {
     char* decrypted, *encrypted, msg_length, crc, dec_crc;
+    int i;
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
 
     /* Check requested length */
@@ -255,10 +265,19 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
         if (crc == dec_crc)
         {
             printk(KERN_DEBUG "CRC sum match");
+            for(i = 0; i < ARRAY_SIZE(leds); i++) 
+            {
+                gpio_set_value(leds[i].gpio, 1);
+            }
         } 
         else
         {
             printk(KERN_DEBUG "CRC sum mismatch");
+            printk(KERN_DEBUG "CRC sum match");
+            for(i = 0; i < ARRAY_SIZE(leds); i++) 
+            {
+                gpio_set_value(leds[i].gpio, 0);
+            }
         }
         kfree(decrypted);
         return length;
@@ -324,6 +343,7 @@ static int __init  project_init(void)
         err=-ENODEV;
         goto err_dev_unregister;
     }
+    gpio_request_array(leds, ARRAY_SIZE(leds));
     return 0;
 
     err_dev_unregister:
@@ -333,9 +353,14 @@ static int __init  project_init(void)
 
 static void __exit project_exit(void)
 {
+    int i;
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
     cdev_del(&project_cdev);
     unregister_chrdev_region(project_dev, project_count);
+	for(i = 0; i < ARRAY_SIZE(leds); i++) 
+    {
+		gpio_set_value(leds[i].gpio, 0);
+	}
 }
 
 module_init(project_init);
