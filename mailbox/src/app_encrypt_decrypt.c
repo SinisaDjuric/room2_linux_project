@@ -62,10 +62,11 @@ void* create_msg(void* param)
     char message[MAX_BUFFER];
     int file_descriptor = *(int*)(param);
     /* Length of the message created */
-    int len = random()%(MAX_STRING);  
+    int len = 0;
 
     while(1)
     {
+        len = random() % (MAX_STRING);
         if (sem_trywait(&sem_finish) == 0)
         {
              break;

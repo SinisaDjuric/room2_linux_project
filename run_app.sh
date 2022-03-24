@@ -13,5 +13,5 @@ app_dir="mailbox/build"
 app_name="app"
 
 # Run app
-./$app_dir/$app_name $module_file_name | tee $log_file
+./$app_dir/$app_name $module_file_name >> $log_file 2>&1
 
