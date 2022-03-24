@@ -1,13 +1,10 @@
 #!/bin/bash
 
-# Name of the directory the script is placed in
-dir_name=$(dirname "$0")
+#module device file
+module_file_name=/dev/mailbox_module
 
-# Path to script and kernel module
-curr_dir=$(realpath ${dir_name})
-
-# File name
-file_name="out_log.txt"
+# Log file name
+log_file="out_log.txt"
 
 # App path
 app_dir="mailbox/build"
@@ -16,5 +13,5 @@ app_dir="mailbox/build"
 app_name="app"
 
 # Run app
-./$curr_dir/$app_dir/$app_name | tee $file_name
+./$app_dir/$app_name $module_file_name | tee $log_file
 

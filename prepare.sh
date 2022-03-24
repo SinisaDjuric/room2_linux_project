@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Clean
-make clean
-
-# Build
-make
-
 # Name of the module
 kernel_module_dir="kernel_module"
 
