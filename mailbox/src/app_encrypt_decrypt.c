@@ -79,7 +79,7 @@ void* create_msg(void* param)
         }
         message[i]='\0'; 
 
-        printf("\ncreated:   %s  sizeof: %d\n",message , sizeof(message));
+        printf("\nCreated:   %s.\n", message);
         /* Set mode to encryption */
         mode = 1;
         if (ioctl(file_descriptor, mode)) 
@@ -124,7 +124,7 @@ void* encrypted_msg(void* param)
                 printf("Encrypted thread: failed to read data from driver\n");
                 //return -1;
             }
-            printf("Encrypted: %s  sizeof: %d\n", encrypted + 2, sizeof(encrypted));
+            printf("Encrypted: %s.\n", encrypted + 2);
             
             int rand = random()%10;
 
@@ -132,7 +132,7 @@ void* encrypted_msg(void* param)
             {
                 /* Change random encrypted message to test decryption */
                 encrypted[2]++;
-                printf("Encrypted with change: %s  sizeof: %d\n", encrypted + 2, sizeof(encrypted));
+                printf("Encrypted with change: %s.\n", encrypted + 2);
             }
             mode = 0;
             if (ioctl(file_descriptor, mode)) 
@@ -174,7 +174,7 @@ void* decrypted_msg(void* param)
                 //return -1;
             }
 
-            printf("Decrypted: %s  sizeof: %d\n", decrypted, sizeof(decrypted));
+            printf("Decrypted: %s.\n", decrypted);
             /* Check if sending should stop. */
             if (sem_trywait(&sem_stop) == 0)
             {
