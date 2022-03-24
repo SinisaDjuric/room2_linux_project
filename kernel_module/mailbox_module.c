@@ -55,6 +55,7 @@ char* get_encrypted(char* message, int* length)
     if (encrypted == NULL) 
     {
         printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
+        return NULL;
     }
     strncpy(encrypted, message, size + 1);
 
@@ -92,6 +93,7 @@ char* get_decrypted(char* encrypted, int length)
     if (decrypted == NULL) 
     {
         printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
+        return NULL;
     }
     strncpy(decrypted, encrypted, length + 1);
 
@@ -123,13 +125,21 @@ char* get_decrypted(char* encrypted, int length)
 /* Appends CRC to encrypted message (decrypted or encrypted) */
 char* encrypt_append_crc_length(char* message, int* length, char* crc)
 {
-    char* encrypted = get_encrypted(message, length);
-    char sum = calculate_crc(message, *length);
+    char* encrypted, *message_crc;
+    char sum = 0;
     int j = 0;
-    char* message_crc = (char*)kmalloc_array(*length + 3, sizeof(char), GFP_ATOMIC);
+
+    encrypted = get_encrypted(message, length);
+    sum = calculate_crc(message, *length);
+    if (encrypted == NULL)
+    {
+        return NULL;
+    }
+    message_crc = (char*)kmalloc_array(*length + 3, sizeof(char), GFP_ATOMIC);
     if (message_crc == NULL) 
     {
         printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
+        return NULL;
     }
     message_crc[0] = (char)(*length);
     message_crc[1] = sum;
@@ -159,6 +169,10 @@ ssize_t project_read (struct file *pfile, char __user *buffer, size_t length, lo
     if (mode == 1)
     {
         encrypted_crc = encrypt_append_crc_length(project_data.project_buff, &msg_length, &crc);
+        if(encrypted_crc == NULL)
+        {
+            return -EFAULT;
+        }
         if (*offset == 0)
         {
             /* Send data to user space */
@@ -229,6 +243,10 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
         crc = project_data.project_buff[1];
         encrypted = project_data.project_buff + 2;
         decrypted = get_decrypted(encrypted, msg_length);
+        if (decrypted == NULL)
+        {
+            return -EFAULT;
+        }
         dec_crc = calculate_crc(decrypted, msg_length);
         memset(project_data.project_buff, 0, PROJECT_BUFFSIZE);
         strncpy(project_data.project_buff, decrypted, msg_length + 1);
