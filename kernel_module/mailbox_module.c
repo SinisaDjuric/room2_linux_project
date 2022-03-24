@@ -52,6 +52,10 @@ char* get_encrypted(char* message, int* length)
     /* Save message length due to encryption, meaybe output can be "mef\0fwr\0\0" */
     *length = size;
     encrypted = (char*)kmalloc_array(size + 1, sizeof(char), GFP_ATOMIC);
+    if (encrypted == NULL) 
+    {
+        printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
+    }
     strncpy(encrypted, message, size + 1);
 
     for(i = 0; encrypted[i] != '\0'; ++i)
@@ -85,6 +89,10 @@ char* get_decrypted(char* encrypted, int length)
     int i;
     char ch, *decrypted;
     decrypted = (char*)kmalloc_array(length + 1, sizeof(char), GFP_ATOMIC);
+    if (decrypted == NULL) 
+    {
+        printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
+    }
     strncpy(decrypted, encrypted, length + 1);
 
     for(i = 0; i < length; ++i)
@@ -119,6 +127,10 @@ char* encrypt_append_crc_length(char* message, int* length, char* crc)
     char sum = calculate_crc(message, *length);
     int j = 0;
     char* message_crc = (char*)kmalloc_array(*length + 3, sizeof(char), GFP_ATOMIC);
+    if (message_crc == NULL) 
+    {
+        printk(KERN_ERR "Failed to allocate memmory inside %s function.\n", __FUNCTION__);
+    }
     message_crc[0] = (char)(*length);
     message_crc[1] = sum;
     for(j = 0; j < *length; j++)
@@ -242,11 +254,24 @@ ssize_t project_write (struct file *pfile, const char __user *buffer, size_t len
 
  long project_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  {
+    int ret = 0;
     printk(KERN_DEBUG "%s called...\n", __FUNCTION__);
-    mode = cmd;
-    printk(KERN_DEBUG "Encryption mode updated to '%d'\n", mode);
-
-    return 0;
+    switch (cmd)
+    {
+    case 1:
+        printk(KERN_DEBUG "Driver mode = 'Encryption'\n");
+        mode = cmd;
+        break;
+    case 0:
+        printk(KERN_DEBUG "Driver mode = 'Decryption'\n");
+        mode = cmd;
+        break;
+    default:
+        printk(KERN_DEBUG "Unknown encryption mode '%d'!\n", mode);
+        ret = -EFAULT;
+        break;
+    }
+    return ret;
 }
 
 int project_close (struct inode *pnode, struct file *pfile)
