@@ -25,6 +25,8 @@ static sem_t sem_stop;
 
 static sigset_t sigset;  
 
+static char char_set[]="QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm";
+
 void wait_next_activation(void)
 {
     /* Wait for the signal from the sigset and write in the dummy data to
@@ -59,6 +61,7 @@ void* create_msg(void* param)
     int ret;
     int mode;
     int i;
+    int position;
     char message[MAX_BUFFER];
     int file_descriptor = *(int*)(param);
     /* Length of the message created */
@@ -75,7 +78,9 @@ void* create_msg(void* param)
         for(i = 0; i < len; i++)
         {
             /* Creating a random character */
-            message[i]= 'A'+ (random() % 26);     
+            //message[i]= 'A'+ (random() % 26); 
+            position = random() % strlen( char_set);
+            message[i] = char_set[position];
         }
         message[i]='\0'; 
 
@@ -248,7 +253,6 @@ int main(int argc, char* argv[])
     }
 
     /* Initialize semaphores */
-    /* Signal the first thread */
     ret = sem_init(&sem_encrypt, 0, 0);
     if (ret != 0)
     {
