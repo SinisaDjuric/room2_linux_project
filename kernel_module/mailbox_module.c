@@ -281,7 +281,6 @@ ssize_t mailbox_write (struct file *pfile, const char __user *buffer, size_t len
         else
         {
             printk(KERN_DEBUG "CRC sum mismatch");
-            printk(KERN_DEBUG "CRC sum match");
             turn_diode_off();
         }
         kfree(decrypted);
